@@ -66,6 +66,14 @@ class CashMetricsEngine:
         """Format raw value to millions with comma separators."""
         return format_number(v)
 
+    def _fmt_yi(self, v) -> str:
+        """Format raw value to 亿 (raw / 1e8) with comma separators."""
+        return format_number(v, divider=1e8)
+
+    def _yi_unit(self) -> str:
+        """亿-scale currency unit label (亿元 / 亿港元 / 亿美元)."""
+        return {"HKD": "亿港元", "USD": "亿美元"}.get(self.client._currency, "亿元")
+
     def _raw_row(self, label: str, by_year: dict, col: str, years: list) -> list:
         """Build a table row: [label, val_year1, val_year2, ...] from raw line items."""
         row = [label]
@@ -650,24 +658,24 @@ class CashMetricsEngine:
         lines.append("")
         summary_rows = []
         if aa_ctx and aa_ctx.get("np_latest") is not None:
-            summary_rows.append([f"净利润（归母·{yr}）", self._fmt(aa_ctx.get("np_latest"))])
+            summary_rows.append([f"净利润（归母·{yr}）", self._fmt_yi(aa_ctx.get("np_latest"))])
         if cash_ctx:
             summary_rows.append([f"广义现金（货币资金+交易性·{yr}）",
-                                 self._fmt(cash_ctx.get("cash_broad_latest"))])
+                                 self._fmt_yi(cash_ctx.get("cash_broad_latest"))])
             summary_rows.append([f"狭义现金（货币资金·{yr}）",
-                                 self._fmt(cash_ctx.get("cash_narrow_latest"))])
+                                 self._fmt_yi(cash_ctx.get("cash_narrow_latest"))])
             summary_rows.append([f"有息负债合计（{yr}）",
-                                 self._fmt(cash_ctx.get("ibd_latest"))])
+                                 self._fmt_yi(cash_ctx.get("ibd_latest"))])
             summary_rows.append([f"总负债（{yr}）",
-                                 self._fmt(cash_ctx.get("total_liab_latest"))])
+                                 self._fmt_yi(cash_ctx.get("total_liab_latest"))])
         if ebitda_latest is not None:
-            summary_rows.append([f"EBITDA（{yr}）", self._fmt(ebitda_latest)])
+            summary_rows.append([f"EBITDA（{yr}）", self._fmt_yi(ebitda_latest)])
         if aa_ctx:
-            summary_rows.append([f"真实现金流（最近一年 AA·{yr}）", self._fmt(aa_ctx.get("aa_latest"))])
-            summary_rows.append(["AA_2y（真金白银·近2年）", self._fmt(aa_ctx.get("aa_2y"))])
-            summary_rows.append(["AA_all（真金白银·全部年）", self._fmt(aa_ctx.get("aa_all"))])
+            summary_rows.append([f"真实现金流（最近一年 AA·{yr}）", self._fmt_yi(aa_ctx.get("aa_latest"))])
+            summary_rows.append(["AA_2y（真金白银·近2年）", self._fmt_yi(aa_ctx.get("aa_2y"))])
+            summary_rows.append(["AA_all（真金白银·全部年）", self._fmt_yi(aa_ctx.get("aa_all"))])
         if summary_rows:
-            lines.append(format_table([f"参数（{self._unit()}）", "值"], summary_rows,
+            lines.append(format_table([f"参数（{self._yi_unit()}）", "值"], summary_rows,
                                       alignments=["l", "r"]))
         lines.append("")
         lines.append("---")
