@@ -1,9 +1,12 @@
-# 定性分析结构化参数输出 Schema（v1.1）
+# 定性分析结构化参数输出 Schema（v1.2）
 
 > 定义定性分析模块输出的标准化参数。下游投资策略（龟龟、烟蒂等）通过读取该参数表获取定性结论，
 > 各策略可在自己的 interface 文件中定义额外的映射规则。
 >
 > v1.1 更新：D2 新增行业地图、量化验证、Greenwald 三维框架、竞争对手对比、护城河监控锚点。
+>
+> v1.2 更新：新增"交付硬门槛"表（杠杆7）——章节最小字数 + 必备章节 + 参数完整性，交付前由
+> `report_consistency.py --gates` 确定性校验。参数定义本身不变（向后兼容）。
 
 ---
 
@@ -108,6 +111,19 @@
 
 ---
 
+## 交付硬门槛（杠杆7 · v1.2 新增）
+
+> 报告写盘前必须满足以下**确定性**门槛；由 `scripts/report_consistency.py --gates` 自动校验，
+> 不达标即 exit 1，coordinator 须补足后才可交付。字数按**中文字符（CJK）**计正文（不含表格/代码）。
+
+| 门槛项 | 要求 | 校验方式 |
+|--------|------|---------|
+| 维度一 商业模式 | 正文 **≥600 字** | CJK 字数统计 |
+| 维度二 护城河 | 正文 **≥800 字**，且 `moat_rating` / `supply_side_rating` / `demand_side_rating` / `scale_economy_rating` **4 项评级必填** | 字数 + 参数非空 |
+| 维度六 控股结构 | **若触发**则正文 **≥300 字**（未触发/不适用可豁免） | 字数（不适用时跳过） |
+| 数字溯源汇总 | 报告必须含 `## 数字溯源汇总` 章节 | 章节存在性 |
+| 结构化参数 | 报告必须含 `## 结构化参数`，且参数表**无留空**（不可得填 `null` 并注明） | 章节存在性 + 无空格 |
+
 ## 使用说明
 
 ### 独立运行模式
@@ -120,11 +136,12 @@
 - **烟蒂策略**：`strategies/cigarbutt/references/cigarbutt_interface.md` 定义 output_schema → 烟蒂支柱评分的映射
 
 ### 版本兼容
-- Schema 版本号：v1.1
+- Schema 版本号：v1.2
 - v1.0 → v1.1 变更：D2 新增 market_cr4, entry_barrier, roe_5y_avg, moat_existence, moat_evidence_strength, moat_framework_primary, supply_side_rating, demand_side_rating, scale_economy_rating, false_advantages, competitor_ranking, advantage_gap_sustainability, moat_sustainability, moat_monitor_kpis；moat_rating 值域扩展为 强/较强/中/弱
+- v1.1 → v1.2 变更：新增"交付硬门槛"表（章节字数/必备章节/参数完整性）；**参数定义无变化**，纯增量
 - 新增参数向后兼容（下游策略忽略未知参数）
 - 删除/改名参数需同步更新所有策略的 interface 文件
 
 ---
 
-*通用定性分析模块 v1.1 | 结构化参数输出 Schema*
+*通用定性分析模块 v1.2 | 结构化参数输出 Schema*
