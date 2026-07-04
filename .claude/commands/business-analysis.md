@@ -7,7 +7,7 @@ Run a standalone Business Model & Moat Qualitative Analysis (商业模式与护�
 
 ## Execution Instructions
 
-Read shared/qualitative/coordinator_v2.md for the full pipeline specification, then execute each step:
+Read shared/qualitative/coordinator.md for the full pipeline specification, then execute each step:
 
 ### Step 1: Data Collection (parallel)
 
@@ -57,7 +57,7 @@ Launch a single Agent with full context (Mode A — leverages 1M context for cro
 Agent(
   subagent_type = "general-purpose",
   prompt = """
-  Read shared/qualitative/qualitative_assessment_v2.md for the complete analysis framework.
+  Read shared/qualitative/qualitative_assessment.md for the complete analysis framework.
 
   Also load these reference files:
     - shared/qualitative/references/judgment_examples.md (judgment anchors)
@@ -73,7 +73,7 @@ Agent(
     - Tushare data: output/{code}_{company}/data_pack_market.md
     - Annual report PDF: loaded in context (if available)
 
-  Follow the 6-dimension framework in qualitative_assessment_v2.md.
+  Follow the 6-dimension framework in qualitative_assessment.md.
   Pay special attention to "revenue quality decomposition" and "cross-validation" sections.
 
   Write final report to: output/{code}_{company}/qualitative_report.md
@@ -91,6 +91,7 @@ Agent(
 python3 scripts/report_to_html.py --input output/{code}_{company}/qualitative_report.md --output output/{code}_{company}/qualitative_report.html --standalone
 
 # For website deployment (external CSS, terancejiang.com):
+# NOTE: local dir is really spelled Teracnejiang.com (historical); the website domain is terancejiang.com
 python3 scripts/report_to_html.py --input output/{code}_{company}/qualitative_report.md --output ~/Projects/Teracnejiang.com/zh/stock/{slug}.html
 ```
 
