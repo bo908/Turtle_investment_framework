@@ -1481,6 +1481,11 @@ def main():
     parser = argparse.ArgumentParser(description="Valuation computation engine")
     parser.add_argument("--code", required=True, help="Stock code (e.g., 600887)")
     parser.add_argument("--output-dir", required=True, help="Output directory")
+    parser.add_argument(
+        "--no-cache",
+        action="store_true",
+        help="Disable the TTL disk cache for financial endpoints (always fetch live)",
+    )
     args = parser.parse_args()
 
     ts_code = validate_stock_code(args.code)
@@ -1491,6 +1496,8 @@ def main():
 
     print(f"[valuation_engine] 正在采集 {ts_code} 数据...", file=sys.stderr)
     client = TushareClient(token)
+    if args.no_cache:
+        client._cache_enabled = False
     client.assemble_data_pack(ts_code)
 
     print(f"[valuation_engine] 正在计算估值...", file=sys.stderr)
