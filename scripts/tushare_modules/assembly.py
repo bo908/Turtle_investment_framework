@@ -35,6 +35,12 @@ class AssemblyMixin:
             self._compute_sotp_inputs,
             lambda: self._compute_factor4_ev_baseline(ts_code),
             lambda: self._compute_factor4_sensitivity(ts_code),
+            # §17.10-17.13 grids (run after §17.5 which populates factor3_sensitivity;
+            # §17.10 must precede §17.11/§17.13 which read _store["payout_crosscheck"])
+            self._compute_payout_crosscheck,
+            lambda: self._compute_penetration_grid(ts_code),
+            self._compute_g_grid,
+            lambda: self._compute_revenue_sensitivity(ts_code),
         ]
 
         for method in sub_methods:
