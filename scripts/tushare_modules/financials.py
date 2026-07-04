@@ -44,6 +44,10 @@ class FinancialsMixin:
                                 fields="ts_code,trade_date,close,pe_ttm,pb,total_mv,circ_mv,total_share,float_share")
         val_rows = []
         if not daily.empty:
+            # Broker VIP relays may return rows oldest-first; enforce newest-first
+            # so iloc[0] (and every downstream _store["basic_info"] consumer) is the latest.
+            if "trade_date" in daily.columns:
+                daily = daily.sort_values("trade_date", ascending=False).reset_index(drop=True)
             self._store["basic_info"] = daily
             d = daily.iloc[0]
             val_rows = [
@@ -86,6 +90,9 @@ class FinancialsMixin:
             fina = self._safe_call("hk_fina_indicator", ts_code=ts_code,
                                    fields="ts_code,end_date,pe_ttm,pb_ttm,total_market_cap,hksk_market_cap")
             if not fina.empty:
+                # Broker VIP relays may return rows oldest-first; enforce newest-first
+                if "end_date" in fina.columns:
+                    fina = fina.sort_values("end_date", ascending=False).reset_index(drop=True)
                 self._store["basic_info"] = fina
                 d = fina.iloc[0]
                 # Try yfinance for current price
@@ -146,6 +153,9 @@ class FinancialsMixin:
         try:
             daily = self._cached_us_daily(ts_code=api_code)
             if not daily.empty:
+                # Enforce newest-first (bulk cache / relay ordering not guaranteed)
+                if "trade_date" in daily.columns:
+                    daily = daily.sort_values("trade_date", ascending=False).reset_index(drop=True)
                 self._store["basic_info"] = daily
                 d = daily.iloc[0]
                 val_rows = [
@@ -193,6 +203,9 @@ class FinancialsMixin:
             lines.append("数据缺失\n")
             return "\n".join(lines)
 
+        # Broker VIP relays may return rows oldest-first; enforce newest-first
+        if "trade_date" in df.columns:
+            df = df.sort_values("trade_date", ascending=False).reset_index(drop=True)
         latest_close = df.iloc[0]["close"]
         high_52w = df["high"].max()
         low_52w = df["low"].min()
@@ -246,6 +259,9 @@ class FinancialsMixin:
             pass
 
         if not df.empty:
+            # Broker VIP relays may return rows oldest-first; enforce newest-first
+            if "trade_date" in df.columns:
+                df = df.sort_values("trade_date", ascending=False).reset_index(drop=True)
             latest_close = df.iloc[0]["close"]
             high_52w = df["high"].max()
             low_52w = df["low"].min()
