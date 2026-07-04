@@ -15,6 +15,11 @@ def _yf():
     return sys.modules["tushare_collector"].yf
 
 
+def _now() -> pd.Timestamp:
+    """Current time — module-level so tests can freeze it (time-window filters)."""
+    return pd.Timestamp.now()
+
+
 class OtherDataMixin:
     """Mixin providing other data methods for TushareClient."""
 
@@ -325,7 +330,7 @@ class OtherDataMixin:
             return "\n".join(lines)
 
         # Filter to last 3 years
-        three_years_ago = (pd.Timestamp.now() - pd.DateOffset(years=3)).strftime("%Y%m%d")
+        three_years_ago = (_now() - pd.DateOffset(years=3)).strftime("%Y%m%d")
         if "ann_date" in df.columns:
             df = df[df["ann_date"] >= three_years_ago].copy()
 
