@@ -166,21 +166,21 @@ Codex 审计在五粮液定性报告中识别出 4 类系统性错误：
 
 ## 五、最终实施优先级（合并后）
 
-| 优先级 | 杠杆 | 工作项 | 成本 |
-|---|---|---|---|
-| **P0** | 1 | quality_control.py 代码化高错率计算 | 1-2h |
-| **P0** | 2 | qualitative_assessment.md 加溯源标注 + 自动溯源表 | 30min |
-| **P0** | **5（新）** | phase3 加 clean-room 重算 subagent | 1-2h |
-| **P0** | **6（新）** | scripts/report_consistency.py 跨段一致性扫描 | 1-2h |
-| **P1** | 3 | coordinator 加 numeric_audit 自审步骤 | 1h |
-| **P1** | **7（新）** | 章节硬门控 + DELIVER ONLY 禁项 | 30min |
-| **P1** | **8（新）** | writing_style_rules.md | 30min |
-| **P1** | **9（新）** | industry_metrics_lookup.md | 1-2h |
-| **P2** | 4 | numeric_validation_checklist.md（措辞黑名单） | 30min |
-| **P2** | **10（新）** | falsification_triggers + catalyst_calendar 字段 | 30min |
-| **P2** | **11（新）** | scripts/check_prompts.py + pre-commit hook | 1h |
+| 优先级 | 杠杆 | 工作项 | 成本 | 状态 |
+|---|---|---|---|---|
+| **P0** | 1 | quality_control.py 代码化高错率计算 | 1-2h | ✅ 已实施 (2026-07-04) |
+| **P0** | 2 | qualitative_assessment.md 加溯源标注 + 自动溯源表 | 30min | ✅ 已实施 (2026-07-04) |
+| **P0** | **5（新）** | phase3 加 clean-room 重算 subagent | 1-2h | ✅ 已实施 (2026-07-04) |
+| **P0** | **6（新）** | scripts/report_consistency.py 跨段一致性扫描 | 1-2h | ✅ 已实施 (2026-07-04) |
+| **P1** | 3 | coordinator 加 numeric_audit 自审步骤 | 1h | ✅ 已实施 (2026-07-04) |
+| **P1** | **7（新）** | 章节硬门控 + DELIVER ONLY 禁项 | 30min | ✅ 已实施 (2026-07-04) |
+| **P1** | **8（新）** | writing_style_rules.md | 30min | ✅ 已实施 (2026-07-04) |
+| **P1** | **9（新）** | industry_metrics_lookup.md | 1-2h | ✅ 已实施 (2026-07-04) |
+| **P2** | 4 | numeric_validation_checklist.md（措辞黑名单） | 30min | 🟡 遗留（未实施） |
+| **P2** | **10（新）** | falsification_triggers + catalyst_calendar 字段 | 30min | 🟡 遗留（未实施） |
+| **P2** | **11（新）** | scripts/check_prompts.py + pre-commit hook | 1h | 🟡 遗留（未实施） |
 
-P0 总成本约 4-6h；P0+P1 总约 8-12h。
+P0 总成本约 4-6h；P0+P1 总约 8-12h。P0+P1（杠杆 1/2/3/5/6/7/8/9）已于 2026-07-04 全部实施；P2（杠杆 4/10/11）遗留。
 
 ## 六、关键参考文件（financial-services 仓库）
 
@@ -198,7 +198,23 @@ P0 总成本约 4-6h；P0+P1 总约 8-12h。
 - ✅ 五粮液 qualitative_report.md 17 处错误已修复
 - ✅ 优化方向已记录（本文件 + 项目记忆）
 - ✅ 借鉴 financial-services 后已新增 7 项改进（杠杆 5-11）
-- 🟡 待实施：所有 11 个杠杆按优先级
+
+### 2026-07-04 实施（P0+P1，本轮优化）
+
+| 杠杆 | 状态 | 落地文件 |
+|---|---|---|
+| 1 确定性预算 | ✅ 已实施 | `scripts/quality_control.py` → `computed_metrics.md`（CM§1-5：亿元对照/同比/多年统计/分红率/PE 估值链），coordinator Step 1A2 调用 |
+| 2 强制溯源 | ✅ 已实施 | `qualitative_assessment.md` 加 `[src: ...]` 标注语法 + 材料性规则；报告必备 `## 数字溯源汇总` 节 |
+| 3 自审 Phase | ✅ 已实施 | `shared/qualitative/agents/numeric_audit.md`（Step 3B，输出 `AUDIT_RESULT: PASS\|FIX_REQUIRED`）+ 3C 修复环 max 1 次 |
+| 5 clean-room 重算 | ✅ 已实施 | `shared/qualitative/agents/cleanroom_audit.md`（Step 2X 与分析并行启动防锚定，只读 data_pack+PDF）→ `cleanroom_metrics.md` |
+| 6 跨段一致性 | ✅ 已实施 | `scripts/report_consistency.py`（Step 3A，5% 容差冲突表，exit 0/1/2）+ `--gates` 硬门槛检查 |
+| 7 章节硬门控 + DELIVER ONLY | ✅ 已实施 | `output_schema.md` → v1.2 交付硬门槛表；coordinator DELIVER ONLY 禁项 |
+| 8 写作风格规则 | ✅ 已实施 | `shared/qualitative/references/writing_style_rules.md`（权威文件，正文单位改亿元、lead-with-numbers、模糊量化词禁用表）；`agents/writing_style.md` 缩为指针 shim |
+| 9 行业指标速查 | ✅ 已实施 | `shared/qualitative/references/industry_metrics_lookup.md`（36 个行业小节，Step 2 仅查目标行业） |
+
+新流程：coordinator `1A→1A2→(2 ‖ 1C ‖ 2X)→3A→3B→3C（max 1）→optional HTML`；新增 4 个内部工件（computed_metrics / cleanroom_metrics / consistency_report / audit.md，均非交付物）。
+
+- 🟡 遗留（本轮未实施）：杠杆 4（措辞黑名单 checklist）、10（falsification_triggers + catalyst_calendar）、11（check_prompts.py + pre-commit hook）
 
 ## 五、参考事件
 
