@@ -542,8 +542,10 @@ class FinancialsMixin:
                                     "intang_assets,goodwill,total_assets,"
                                     "st_borr,notes_payable,acct_payable,"
                                     "contract_liab,adv_receipts,"
+                                    "payroll_payable,taxes_payable,oth_payable,"
                                     "non_cur_liab_due_1y,oth_cur_liab,"
                                     "total_cur_liab,lt_borr,bond_payable,"
+                                    "lt_payable,lease_liab,provisions,defer_inc_non_cur_liab,"
                                     "total_liab,defer_tax_assets,defer_tax_liab,"
                                     "total_hldr_eqy_exc_min_int,minority_int")
         section_label = "4P. 母公司资产负债表" if report_type == "6" else "4. 合并资产负债表"
@@ -584,11 +586,18 @@ class FinancialsMixin:
             ("应付账款", "acct_payable"),
             ("合同负债", "contract_liab"),
             ("预收款项", "adv_receipts"),
+            ("应付职工薪酬", "payroll_payable"),
+            ("应交税费", "taxes_payable"),
+            ("其他应付款", "oth_payable"),
             ("一年内到期非流动负债", "non_cur_liab_due_1y"),
             ("其他流动负债", "oth_cur_liab"),
             ("流动负债合计", "total_cur_liab"),
             ("长期借款", "lt_borr"),
             ("应付债券", "bond_payable"),
+            ("长期应付款", "lt_payable"),
+            ("租赁负债", "lease_liab"),
+            ("预计负债", "provisions"),
+            ("递延收益", "defer_inc_non_cur_liab"),
             ("总负债", "total_liab"),
             ("递延所得税资产", "defer_tax_assets"),
             ("递延所得税负债", "defer_tax_liab"),
