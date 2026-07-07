@@ -125,8 +125,10 @@
 ### 环境准备（首次运行）
 
 ```bash
-pip install tushare pandas pdfplumber --break-system-packages
+bash init.sh   # 创建 .venv 并安装依赖（pandas / tushare / pdfplumber 等）
 ```
+
+> 优先使用 `.venv/bin/python` 执行下方脚本；无 venv 时回退 `python3`。
 
 ### Step A：市场数据刷新
 
@@ -282,7 +284,6 @@ Task(
 ├── strategies/turtle/                          ← 龟龟策略（只读）
 │   ├── coordinator.md                          ← 本文件（调度逻辑）
 │   ├── phase2_PDF解析.md                        ← PDF 附注提取格式规范（BA Step 1C 引用）
-│   ├── phase3_preflight.md                     ← 已废弃（合并到 phase3_quantitative.md Step 0）
 │   ├── phase3_quantitative.md                  ← Step 3.1 Agent B（含 Step 0 数据校验 + 定量分析）
 │   ├── phase3_valuation.md                     ← Step 3.2 Agent C 估值+报告
 │   └── references/

@@ -45,12 +45,58 @@ from tushare_modules import (
     WarningsCollector,
 )
 
+# ============================================================
+# TTL cache configuration for heavy (non-market) endpoints
+# ============================================================
+# Map endpoint (logical name, before VIP mapping) → TTL tier.
+#   "financial": statements & indicators — refresh only a few times/year
+#   "market":    price/rate series — refresh daily
+# Endpoints NOT listed here are never cached (e.g. daily/daily_basic/
+# hk_daily/us_daily intraday prices; *_basic use their own file cache).
+_CACHE_TTL_CATEGORY = {
+    # --- Financial statements & indicators (168h / 7-day TTL) ---
+    "income": "financial",
+    "balancesheet": "financial",
+    "cashflow": "financial",
+    "dividend": "financial",
+    "fina_indicator": "financial",
+    "fina_audit": "financial",
+    "fina_mainbz": "financial",
+    "top10_holders": "financial",
+    "repurchase": "financial",
+    "pledge_stat": "financial",
+    "hk_income": "financial",
+    "hk_balancesheet": "financial",
+    "hk_cashflow": "financial",
+    "hk_fina_indicator": "financial",
+    "us_income": "financial",
+    "us_balancesheet": "financial",
+    "us_cashflow": "financial",
+    "us_fina_indicator": "financial",
+    # --- Market data (24h TTL) ---
+    "weekly": "market",
+    "yc_cb": "market",
+}
+
+_CACHE_TTL_HOURS = {"financial": 168, "market": 24}
+
 
 def rate_limit(func):
-    """Decorator to enforce 0.5s delay between Tushare API calls."""
+    """Decorator to enforce a delay between Tushare API calls.
+
+    The delay (seconds) is read from the ``TUSHARE_RATE_DELAY`` env var at
+    call time (default ``0.5``). Set to ``0`` to disable throttling entirely
+    (useful when a broker/VIP endpoint has no rate limit). ``time.sleep`` is
+    called through the module-level ``time`` import so tests can patch it.
+    """
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        time.sleep(0.5)
+        try:
+            delay = float(os.environ.get("TUSHARE_RATE_DELAY", "0.5"))
+        except ValueError:
+            delay = 0.5
+        if delay > 0:
+            time.sleep(delay)
         return func(*args, **kwargs)
     return wrapper
 
@@ -77,6 +123,8 @@ class TushareClient(
         self._store = {}  # {key: pd.DataFrame} for derived metrics computation
         self._yf_available = _yf_available
         self._cache_dir = os.path.join("output", ".collector_cache")
+        self._cache_enabled = True  # TTL cache for heavy financial endpoints
+        self._ttl_cache = None       # lazily constructed ScreenerCache
         self._fy_end_month: int = 12  # default: calendar year
         self._currency: str = "CNY"
         # Broker API support: route calls through custom URL + enable VIP endpoints
@@ -180,6 +228,59 @@ class TushareClient(
             df = df[df["ts_code"] == ts_code]
         return df
 
+    # --- Phase 2.3: TTL cache for heavy financial endpoints ---
+
+    def _get_ttl_cache(self):
+        """Lazily build a ScreenerCache rooted at ``{self._cache_dir}/ttl``.
+
+        Re-derives from the current ``self._cache_dir`` at call time; if the
+        directory changed since the last build (e.g. tests override
+        ``_cache_dir`` after construction), a fresh cache object is created.
+        """
+        from cache_utils import ScreenerCache
+        ttl_dir = os.path.join(self._cache_dir, "ttl")
+        if self._ttl_cache is None or self._ttl_cache.cache_dir != ttl_dir:
+            self._ttl_cache = ScreenerCache(ttl_dir)
+        return self._ttl_cache
+
+    @staticmethod
+    def _ttl_cache_key(api_name: str, kwargs: dict) -> str:
+        """Build a deterministic cache key for a cacheable endpoint call.
+
+        Keyed on the LOGICAL api_name (stable across VIP/non-VIP), the ts_code
+        (so per-stock invalidation via ``collector_{ts_code}_`` works), and a
+        deterministic signature of the sorted kwargs (so report_type=1 vs 6 are
+        cached separately).
+        """
+        ts_code = kwargs.get("ts_code", "global")
+        sig = ";".join(f"{k}={kwargs[k]}" for k in sorted(kwargs))
+        return f"collector_{ts_code}_{api_name}_{sig}"
+
+    def _cached_call(self, api_name: str, **kwargs) -> pd.DataFrame:
+        """Call a Tushare endpoint through the TTL disk cache when eligible.
+
+        Non-cacheable endpoints (or when ``_cache_enabled`` is False) pass
+        straight through to ``_safe_call``. On a cache hit the cached DataFrame
+        is returned with no ``_safe_call`` (hence no rate-limit sleep). Empty
+        results are never cached.
+        """
+        category = _CACHE_TTL_CATEGORY.get(api_name)
+        if category is None or not self._cache_enabled:
+            return self._safe_call(api_name, **kwargs)
+
+        cache = self._get_ttl_cache()
+        ttl_seconds = _CACHE_TTL_HOURS[category] * 3600
+        key = self._ttl_cache_key(api_name, kwargs)
+
+        cached = cache.get(key, ttl_seconds)
+        if cached is not None:
+            return cached
+
+        df = self._safe_call(api_name, **kwargs)
+        if df is not None and not df.empty:
+            cache.put(key, df)
+        return df
+
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -190,6 +291,10 @@ Examples:
   %(prog)s --code 600887.SH
   %(prog)s --code 600887 --output output/data_pack_market.md
   %(prog)s --code 00700.HK --extra-fields balancesheet.defer_tax_assets
+  %(prog)s --code 600887.SH --cache-refresh   # 财报季（4/8/10月）建议刷新
+
+Note: 财报接口结果会缓存 7 天（行情/利率 24 小时）。财报季（4/8/10 月）
+建议加 --cache-refresh 以获取最新披露的财报数据。
         """,
     )
     parser.add_argument(
@@ -222,6 +327,17 @@ Examples:
         action="store_true",
         help="Only refresh market-sensitive sections (§1/§2/§11/§14) in existing data pack",
     )
+    parser.add_argument(
+        "--no-cache",
+        action="store_true",
+        help="Disable the TTL disk cache for financial endpoints (always fetch live)",
+    )
+    parser.add_argument(
+        "--cache-refresh",
+        action="store_true",
+        help="Invalidate this stock's cached financial data before collecting "
+             "(recommended during earnings season: 4/8/10 月)",
+    )
     return parser.parse_args()
 
 
@@ -246,6 +362,13 @@ def main():
     # Get token
     token = args.token or get_token()
     client = TushareClient(token)
+
+    # TTL cache controls
+    if args.no_cache:
+        client._cache_enabled = False
+    if args.cache_refresh:
+        client._get_ttl_cache().invalidate_prefix(f"collector_{ts_code}_")
+        print(f"Cache invalidated for {ts_code}")
 
     if args.refresh_market:
         from pathlib import Path

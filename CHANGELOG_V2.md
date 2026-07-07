@@ -1,6 +1,57 @@
 # Changelog — 龟龟投资策略 v2
 
-> 本文件记录 v1.1 → v2 的所有变更。当前版本：**v2_beta**
+> 本文件记录 v1.1 → v2 的所有变更。当前版本：**v2.1-beta**
+
+---
+
+## v2.1-beta (2026-07-04) — 全面优化轮
+
+一轮跨四轨的速度/精度/流程优化（计划与审计由 Fable 主持，实现由 Opus 子代理完成）。
+
+### 速度：数据管线（feat(perf) b1b83d3）
+
+- 财报类接口（income/balancesheet/cashflow/dividend/fina_indicator 等 20 个）新增 TTL 磁盘缓存：财务 7 天、weekly/yc_cb 24 小时；daily/daily_basic/\*_basic 永不缓存。缓存实现抽取为共享 `scripts/cache_utils.py`（ScreenerCache），筛选器 re-export 兼容
+- §13 警告区块改读 `_store`，消除 A 股路径 5 次重复 API 调用
+- 限速改为 `TUSHARE_RATE_DELAY` env 可配置（默认 0.5s 不变）；缓存命中不触发限速 sleep
+- 新 CLI：`--no-cache` / `--cache-refresh`（财报季 4/8/10 月建议刷新）；valuation_engine 镜像 `--no-cache`
+- **实测 600887.SH：冷跑 25.9s → 暖跑 5.7s**，输出逐字节一致（仅时间戳）
+
+### 精度：VIP 中继行序防御（fix(tushare) 258fd8e）
+
+- 发现券商 VIP 中继返回价格行为**最旧在前**（标准 Tushare 为最新在前），导致 §1 显示 1996 年上市首日股价/市值、§2 "最新收盘价"为一年前数据，污染所有市值依赖指标
+- `get_basic_info` / `get_market_data`（A股/HK/US 四处）防御性 newest-first 排序 + 回归测试
+
+### 精度：龟龟 §17.10-13 预计算网格（feat(turtle) b3641be）
+
+- §17.10 支付率 M 三重交叉校验（法1 DPS/EPS、法2 现金流、法3 §17.1）+ Python 内裁定 M_rec
+- §17.11 税后 R/GG 网格（M候选 × 税率情景 × AA变体），含 HH、GG−II、**目标买入价**列
+- §17.12 G 系数网格（0.7-1.8 × 12 档，H/OE 逐行预算）；§17.13 λ 收入敏感性 + 临界收入倍数
+- Agent B（phase3_quantitative.md）改为**查表选行 + 说明理由**，新约束 #9"有网格时不做数学"；手算公式保留为降级路径
+- factor_interface 新增 target_buy_price / M_source / GG_source
+
+### 精度：定性模块 11 杠杆 P0+P1（feat(qualitative) 1a3c275）
+
+- 杠杆 1：`scripts/quality_control.py` → `computed_metrics.md`（CM§1-5：亿元对照/同比/多年统计/分红率/PE 估值链），LLM 只引用不重算
+- 杠杆 2：`[src: ...]` 溯源标注语法 + 材料性规则 + 必备 `## 数字溯源汇总` 节
+- 杠杆 5：clean-room 独立重算 agent（与分析并行、禁读草稿、防锚定 + 防注入）
+- 杠杆 6：`scripts/report_consistency.py` 跨段数值冲突扫描 + `--gates` 硬门槛校验
+- 杠杆 3：numeric_audit 审计门（severity 评级、原文→修正对、AUDIT_RESULT 门控、修复环 max 1 次）
+- 杠杆 7：output_schema v1.2 交付硬门槛 + DELIVER ONLY 禁项
+- 杠杆 8：`writing_style_rules.md` 权威化（lead-with-numbers、模糊量化词禁用表、**正文单位切换为亿元**、参数表保持百万元）
+- 杠杆 9：`industry_metrics_lookup.md` 36 行业关键指标锚点
+- 杠杆 4/10/11（P2）遗留未实施
+
+### 流程：v1 存档 + 引用修复（refactor(v2) e69f26d）
+
+- v1 定性模块（agent-team 并行架构 + narrative 变体 + split_data_pack.py）→ `shared/qualitative/legacy/`
+- v2 转正改名：coordinator_v2.md → coordinator.md、qualitative_assessment_v2.md → qualitative_assessment.md
+- turtle 孤儿归档：phase3_preflight.md、phase1_数据采集.md → `strategies/turtle/legacy/`
+- 修复 stale 引用：turtle-analysis 命令 Step 3.0、SKILL.md 入口与流程、PDF 文件名约定统一
+
+### 测试
+
+- 时间炸弹修复：`other_data.py` 抽出可冻结的 `_now()`，TestRepurchase 冻结时钟（fixture 永不过期）
+- 测试规模：597 → **920 全绿**（新增缓存/网格/质量脚本/行序防御/prompt 断言共 ~130 项）
 
 ---
 
@@ -193,3 +244,4 @@ Step 4: report_to_html.py → HTML 仪表盘
 | v1.1 | — | 17 improvements across 9 files, shared_tables, HK/US support |
 | v2.0-alpha | 2026-03-31 | 模块化拆分 + Greenwald 护城河框架 + HTML 仪表盘 + Agent Team |
 | v2.0-beta | 2026-04-05 | PDF-first + 单Agent + Pre-flight合并 + 估值模块 + 实战验证 |
+| v2.1-beta | 2026-07-04 | TTL缓存(冷25.9s→暖5.7s) + §17.10-13网格 + 定性审计门(P0+P1杠杆) + v1存档 + VIP行序防御 + 920测试全绿 |

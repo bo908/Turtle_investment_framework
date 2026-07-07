@@ -35,6 +35,12 @@ class AssemblyMixin:
             self._compute_sotp_inputs,
             lambda: self._compute_factor4_ev_baseline(ts_code),
             lambda: self._compute_factor4_sensitivity(ts_code),
+            # §17.10-17.13 grids (run after §17.5 which populates factor3_sensitivity;
+            # §17.10 must precede §17.11/§17.13 which read _store["payout_crosscheck"])
+            self._compute_payout_crosscheck,
+            lambda: self._compute_penetration_grid(ts_code),
+            self._compute_g_grid,
+            lambda: self._compute_revenue_sensitivity(ts_code),
         ]
 
         for method in sub_methods:
@@ -349,13 +355,19 @@ class AssemblyMixin:
                     stored = self._store.get(store_key)
                     wc.check_missing_data(label, stored if stored is not None else pd.DataFrame())
             else:
-                # A-share: Check missing data + YoY anomaly for core financial statements
-                for label, api, fields in [
-                    ("合并利润表", "income", "ts_code,end_date,revenue,n_income_attr_p"),
-                    ("合并资产负债表", "balancesheet", "ts_code,end_date,total_assets"),
-                    ("现金流量表", "cashflow", "ts_code,end_date,n_cashflow_act"),
+                # A-share: Check missing data + YoY anomaly for core financial
+                # statements. Read from _store (populated by get_income/
+                # get_balance_sheet/get_cashflow) instead of re-fetching, which
+                # eliminates redundant API calls. YoY scan window is the ~5y
+                # display window (consistent with the HK/US branch above).
+                for label, store_key, cols in [
+                    ("合并利润表", "income", ["revenue", "n_income_attr_p"]),
+                    ("合并资产负债表", "balance_sheet", ["total_assets"]),
+                    ("现金流量表", "cashflow", ["n_cashflow_act"]),
                 ]:
-                    df = self._safe_call(api, ts_code=ts_code, fields=fields)
+                    df = self._store.get(store_key)
+                    if df is None:
+                        df = pd.DataFrame()
                     wc.check_missing_data(label, df)
                     if not df.empty and "end_date" in df.columns:
                         # Filter to annual reports only (end_date ending in "1231")
@@ -363,20 +375,18 @@ class AssemblyMixin:
                         annual = annual.sort_values("end_date", ascending=False)
                         if not annual.empty:
                             dates = annual["end_date"].astype(str).str[:4].tolist()
-                            for col in fields.split(",")[2:]:  # skip ts_code, end_date
+                            for col in cols:
                                 if col in annual.columns:
                                     wc.check_yoy_change(label, col, annual[col].tolist(), dates=dates)
 
-                # Audit risk check
-                audit_df = self._safe_call("fina_audit", ts_code=ts_code,
-                                           fields="ts_code,end_date,audit_agency,audit_result")
-                if not audit_df.empty and "audit_result" in audit_df.columns:
+                # Audit risk check — read stored fina_audit (newest-first)
+                audit_df = self._store.get("fina_audit")
+                if audit_df is not None and not audit_df.empty and "audit_result" in audit_df.columns:
                     wc.check_audit_risk(str(audit_df.iloc[0].get("audit_result", "")))
 
-            # Balance sheet risk checks (goodwill, debt ratio) — use stored data for HK/US
-            bs_df = self._store.get("balance_sheet") if (self._is_hk(ts_code) or self._is_us(ts_code)) else \
-                self._safe_call("balancesheet", ts_code=ts_code,
-                                fields="ts_code,end_date,goodwill,total_assets,total_liab")
+            # Balance sheet risk checks (goodwill, debt ratio) — use stored data
+            # (store rows are newest-first, so iloc[0] is the latest period).
+            bs_df = self._store.get("balance_sheet")
             if bs_df is not None and not bs_df.empty:
                 latest = bs_df.iloc[0]
                 gw = latest.get("goodwill", 0) or 0

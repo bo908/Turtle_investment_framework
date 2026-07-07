@@ -82,7 +82,10 @@
 | O_mm | float | 步骤5 | 年均注销型回购 |
 | AA_mm | float | 步骤8 | 真实可支配现金结余基准 |
 | AA_type | string | 步骤8 | AA_2y / AA_all / AA_excl |
-| GG_pct | float | 步骤10 | 精算穿透回报率 |
+| GG_pct | float | 步骤10 | 精算穿透回报率（§17.11 表B 默认Q，或手算） |
+| GG_source | string | 步骤10 | GG 来源：§17.11 表B AA_x×法y @ Q=z% / 手算降级 |
+| M_source | string | 步骤10 | M 来源：§17.10 法1/法2/法3 M_rec / 手算降级 |
+| target_buy_price | float | 步骤10 | 目标买入价（§17.11 默认Q = 当前股价×GG/II） |
 | HH_pct | float | 步骤10 | 粗算偏差 R − GG |
 | lambda_coeff | float | 步骤10 | 经营杠杆系数 |
 | lambda_reliability | enum | 步骤10 | 正常/有一项警告/异常 |

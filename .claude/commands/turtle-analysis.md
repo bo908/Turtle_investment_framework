@@ -22,7 +22,6 @@ python3 scripts/tushare_collector.py --code $ARGUMENTS --output output/{code}_{c
 - If data pack is >7 days old, auto-falls back to full collection
 
 ### Phase 3: Analysis and Report
-- **Step 3.0**: Read strategies/turtle/phase3_preflight.md for data validation
 - **Step 3.1 Agent B**: Read strategies/turtle/phase3_quantitative.md for penetrating return rate calculation
 - **Step 3.2 Agent C**: Read strategies/turtle/phase3_valuation.md for valuation + report assembly
   - Reads qualitative_report.md (from /business-analysis) for qualitative parameters
